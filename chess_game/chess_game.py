@@ -78,7 +78,8 @@ def get_all_squares_between(start, finish):
             squares.append(chr(file) + str(r))
     elif rank_start == rank_end:
         rank = rank_start
-        for f in range(file_start+1, file_end+1, 1 if file_end > file_start else -1):
+        diff = 1 if file_end > file_start else -1
+        for f in range(file_start+diff, file_end+diff, 1 if file_end > file_start else -1):
             squares.append(chr(f) + str(rank))
     else:
         file_dif = 1 if file_end > file_start else -1
@@ -106,15 +107,15 @@ def is_promotion(move):
 
 def is_castling_long(move):
     piece = move[0]
-    init_file = move[1][1]
-    end_file = move[2][1]
+    init_file = move[1][0]
+    end_file = move[2][0]
     return piece.symbol.upper() == 'K' and init_file == 'E' and end_file == 'C'
 
 
 def is_castling_short(move):
     piece = move[0]
-    init_file = move[1][1]
-    end_file = move[2][1]
+    init_file = move[1][0]
+    end_file = move[2][0]
     return piece.symbol.upper() == 'K' and init_file == 'E' and end_file == 'G'
 
 
@@ -520,12 +521,20 @@ class Move:
         cl = matches[0][8]
         cs = matches[0][9]
         p = board.get_piece(pc, id1 + id2, tg)
-        if p.symbol == '.' or p is None:
+        if (p.symbol == '.' or p is None) and cl == '' and cs == '':
             raise InValidMove(notation + " move is not possible or valid")
         else:
             if cl != '':
+                moves = board.get_moves()
+                for move in moves:
+                    if is_castling_long(move):
+                        return Move(move, False)
                 raise InValidMove("Castling long not possible now")
             elif cs != '':
+                moves = board.get_moves()
+                for move in moves:
+                    if is_castling_short(move):
+                        return Move(move, False)
                 raise InValidMove("Castling short not possible now")
             else:
                 return Move((p, p.currentSquare, tg.upper(), pr), cp == 'x')
@@ -894,6 +903,12 @@ class Player:
         self.compute_attacking_squares(board)
         self.compute_valid_moves(board)
 
+    def disable_long_castling(self):
+        self.castle_long = False
+
+    def disable_short_castling(self):
+        self.castle_short = False
+
 
 class Board:
 
@@ -937,11 +952,47 @@ class Board:
 
     def make_move(self, move_notation):
         move = Move.from_notation(move_notation, self)
+        is_king_rook = move.start == self.currentPlayer.king_rook.currentSquare
+        is_queen_rook = move.start == self.currentPlayer.queen_rook.currentSquare
+        promoted = ""
+        if is_promotion((move.piece, move.start, move.target)):
+            promoted = move.promoted
+            if promoted == '':
+                raise InValidMove("Promoted piece not decided")
         if move is None:
             return
         moving_piece = self.remove_piece_at(move.start)
         self.remove_piece_at(move.target)
         self.place_piece_at(moving_piece, move.target)
+        if move_notation == 'O-O':
+            king_rook = self.remove_piece_at(self.currentPlayer.king_rook.currentSquare)
+            king_left = get_square_in_direction(move.target, 'W', 1)
+            self.remove_piece_at(king_left)
+            self.place_piece_at(king_rook, king_left)
+        elif move_notation == 'O-O-O':
+            queen_rook = self.remove_piece_at(self.currentPlayer.queen_rook.currentSquare)
+            king_right = get_square_in_direction(move.target, 'E', 1)
+            self.remove_piece_at(king_right)
+            self.place_piece_at(queen_rook, king_right)
+        if moving_piece.symbol.upper() == 'K':
+            self.currentPlayer.disable_long_castling()
+            self.currentPlayer.disable_short_castling()
+        elif is_king_rook:
+            self.currentPlayer.disable_short_castling()
+        elif is_queen_rook:
+            self.currentPlayer.disable_long_castling()
+        if promoted:
+            symbol = promoted.lower() if moving_piece.color == BLACK else promoted.upper()
+            values = {
+                'Q': 9,
+                'R': 5,
+                'B': 3,
+                'N': 3
+            }
+            value = values.get(promoted.upper())
+            new_piece = Piece(moving_piece.color, symbol, value)
+            self.remove_piece_at(move.target)
+            self.place_piece_at(new_piece, move.target)
         self.refresh()
         self.switch_turn()
 
