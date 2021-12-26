@@ -2,13 +2,13 @@ from distutils.core import setup
 setup(
   name = 'chess-game',
   packages = ['chess-game'],
-  version = '0.0',
+  version = '0.0.1',
   license='GPL-3.0+',
   description = 'A simple chess library',
   author = 'Utkrisht Sinha',
   author_email = '',
   url = 'https://github.com/Utkrisht-1997/chess-game',
-  download_url = 'https://github.com/Utkrisht-1997/chess-game/archive/refs/tags/v_00.tar.gz',
+  download_url = 'https://github.com/Utkrisht-1997/chess-game/archive/refs/tags/v_001.tar.gz',
   keywords = ['chess', 'game', 'python'],
   install_requires=[],
   classifiers=[
