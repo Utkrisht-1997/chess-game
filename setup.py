@@ -1,7 +1,7 @@
 from distutils.core import setup
 setup(
   name = 'chess-game',
-  packages = ['chess-game'],
+  packages = ['chess_game'],
   version = '0.0.1',
   license='GPL-3.0+',
   description = 'A simple chess library',
