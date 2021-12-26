@@ -10,10 +10,7 @@ setup(
   url = 'https://github.com/Utkrisht-1997/chess-game',
   download_url = 'https://github.com/user/reponame/archive/v_01.tar.gz',
   keywords = ['chess', 'game', 'python'],
-  install_requires=[
-          'validators',
-          'beautifulsoup4',
-      ],
+  install_requires=[],
   classifiers=[
     'Development Status :: 1 - Planning', 
     'Intended Audience :: Developers',
