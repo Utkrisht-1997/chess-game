@@ -1,2 +1,6 @@
-# chess-game
-A simple chess game in python
+# Chess-Game
+A simple chess game in Python
+## Installation
+```sh
+pip install chess-game
+```
