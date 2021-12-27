@@ -916,7 +916,7 @@ class Board:
 
     board_history = []
 
-    def __init__(self, player1: Player, player2: Player):
+    def __init__(self, player1: Player = Player(WHITE), player2: Player = Player(BLACK)):
         self.piece_board = [Piece.EMPTY()] * 64
         self.char_board = ['.'] * 64
         self.currentPlayer = player1
@@ -946,7 +946,7 @@ class Board:
                 else:
                     print(color_dark + fore_color + " " + ch + " ", end="")
             print(Back.RESET + Fore.RESET + "")
-            
+
     def place_piece_at(self, piece: Piece, pos: str):
         ind = get_pos_from_square(pos)
         self.piece_board[ind] = piece
