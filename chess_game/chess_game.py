@@ -1,5 +1,6 @@
 import re
 import copy
+from colorama import Fore, Back
 
 WHITE = 1
 BLACK = -1
@@ -924,12 +925,28 @@ class Board:
         self.moveCounter75 = 0
         self.enPassant = ""
 
-    def show(self):
+    def print_ascii(self):
         for i in range(64):
             print(self.char_board[i], end="  ")
             if i != 0 and (i + 1) % 8 == 0:
                 print()
 
+    def print_colored(self):
+        color_dark = Back.LIGHTBLUE_EX
+        color_light = Back.LIGHTWHITE_EX
+        for r in range(8):
+            for f in range(8):
+                ind = 8 * r + f
+                ch = self.char_board[ind]
+                if ch == '.':
+                    ch = " "
+                fore_color = Fore.BLACK if ch.islower() else Fore.MAGENTA
+                if r % 2 == f % 2:
+                    print(color_light + fore_color + " " + ch + " ", end="")
+                else:
+                    print(color_dark + fore_color + " " + ch + " ", end="")
+            print(Back.RESET + Fore.RESET + "")
+            
     def place_piece_at(self, piece: Piece, pos: str):
         ind = get_pos_from_square(pos)
         self.piece_board[ind] = piece

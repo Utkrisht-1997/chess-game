@@ -10,7 +10,7 @@ setup(
   url = 'https://github.com/Utkrisht-1997/chess-game',
   download_url = 'https://github.com/Utkrisht-1997/chess-game/archive/refs/tags/v_011.tar.gz',
   keywords = ['chess', 'game', 'python'],
-  install_requires=[],
+  install_requires=['colorama'],
   classifiers=[
     'Development Status :: 3 - Alpha', 
     'Intended Audience :: Developers',
