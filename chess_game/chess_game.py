@@ -521,7 +521,7 @@ class Move:
         pr = matches[0][7]
         cl = matches[0][8]
         cs = matches[0][9]
-        p = board.get_piece(pc, id1 + id2, tg)
+        p = board.get_piece(pc, id1 + id2, tg, notation)
         if (p.symbol == '.' or p is None) and cl == '' and cs == '':
             raise InValidMove(notation + " move is not possible or valid")
         else:
@@ -1065,12 +1065,14 @@ class Board:
         target = self.get_piece_at(move[2])
         return not target.is_dead_or_empty()
 
-    def get_piece(self, pc, identifier, target):
+    def get_piece(self, pc, identifier, target, move=""):
         possible_pieces = self.get_possible_pieces(pc, target)
         if len(possible_pieces) == 0:
             return Piece.EMPTY()
         elif len(possible_pieces) == 1:
             return possible_pieces[0]
+        elif identifier == '':
+            raise InValidMove(move + ' move is ambiguous')
         else:
             return get_piece_from_possibles(possible_pieces, identifier)
 
