@@ -74,7 +74,8 @@ def get_all_squares_between(start, finish):
     squares = []
     if file_start == file_end:
         file = file_start
-        for r in range(rank_start+1, rank_end+1, 1 if rank_end > rank_start else -1):
+        diff = 1 if file_end > file_start else -1
+        for r in range(rank_start+diff, rank_end+diff, 1 if rank_end > rank_start else -1):
             squares.append(chr(file) + str(r))
     elif rank_start == rank_end:
         rank = rank_start
