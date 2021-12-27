@@ -131,11 +131,11 @@ def get_move_indicator(move, move_list):
             continue
         file_ambig, rank_ambig = get_ambig(m[1], move[1])
     if file_ambig and rank_ambig:
-        return move[1]
+        return move[1].lower()
     elif file_ambig:
-        return move[1][1]
+        return move[1][1].lower()
     elif rank_ambig:
-        return move[1][0]
+        return move[1][0].lower()
     else:
         return ""
 
@@ -150,7 +150,7 @@ def get_ambig(square1, square2):
 
 def get_piece_from_possibles(pieces, identifier):
     for piece in pieces:
-        if identifier in [piece.currentSquare, piece.currentSquare[0], piece.currentSquare[1]]:
+        if identifier in [piece.currentSquare.lower(), piece.currentSquare[0].lower(), piece.currentSquare[1].lower()]:
             return piece
     return pieces[0]
 
@@ -361,7 +361,7 @@ class Piece:
                 if square == "":
                     continue
                 piece = board.get_piece_at(square)
-                if not piece.is_dead_or_empty() and piece.color != self.color:
+                if (not piece.is_dead_or_empty() and piece.color != self.color) or board.is_en_passant(square):
                     moves.append(square)
         elif self.color == BLACK:
             directions = ['SW', 'SE']
@@ -370,7 +370,7 @@ class Piece:
                 if square == "":
                     continue
                 piece = board.get_piece_at(square)
-                if not piece.is_dead_or_empty() and piece.color != self.color:
+                if (not piece.is_dead_or_empty() and piece.color != self.color) or board.is_en_passant(square):
                     moves.append(square)
         return moves
 
@@ -921,6 +921,7 @@ class Board:
         self.currentOpponent = player2
         self.moveCounter = 0
         self.moveCounter75 = 0
+        self.enPassant = ""
 
     def show(self):
         for i in range(64):
@@ -951,6 +952,7 @@ class Board:
         return square in attacks
 
     def make_move(self, move_notation):
+        self.enPassant = ""
         move = Move.from_notation(move_notation, self)
         is_king_rook = move.start == self.currentPlayer.king_rook.currentSquare
         is_queen_rook = move.start == self.currentPlayer.queen_rook.currentSquare
@@ -993,6 +995,8 @@ class Board:
             new_piece = Piece(moving_piece.color, symbol, value)
             self.remove_piece_at(move.target)
             self.place_piece_at(new_piece, move.target)
+        if moving_piece.symbol.upper() == 'P' and ((ord(move.start[1]) - ord(move.target[1])) in [2, -2]):
+            self.enPassant = move.start[0] + chr((ord(move.start[1]) + ord(move.target[1]))//2)
         self.refresh()
         self.switch_turn()
 
@@ -1110,3 +1114,6 @@ class Board:
             return piece.get_precomputed_moves()
         else:
             return []
+
+    def is_en_passant(self, square):
+        return self.enPassant.upper() == square.upper()
