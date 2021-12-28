@@ -190,14 +190,13 @@ def get_piece_from_char(c: str):
         'P': 1
     }
     value = value_dict.get(c.upper())
-    return Piece(color, c, value)
+    return ChessPiece(color, c, value)
 
 
 def fen_to_char_array(fen: str):
     fen_rows = fen.split("/")
     ch_arr = ['.'] * 64
     r = 0
-    f = 0
     for fen_row in fen_rows:
         f = 0
         for ch in fen_row:
@@ -237,7 +236,7 @@ class InvalidFen(Exception):
     pass
 
 
-class Piece:
+class ChessPiece:
 
     def __init__(self, color: int, symbol: str, value: int):
         self.color = color
@@ -252,58 +251,6 @@ class Piece:
         self.removed = False
         self.attack_computed = False
         self.move_computed = False
-
-    @classmethod
-    def WHITE_ROOK(cls):
-        return Piece(WHITE, 'R', 5)
-
-    @classmethod
-    def WHITE_BISHOP(cls):
-        return Piece(WHITE, 'B', 3)
-
-    @classmethod
-    def WHITE_QUEEN(cls):
-        return Piece(WHITE, 'Q', 9)
-
-    @classmethod
-    def WHITE_KING(cls):
-        return Piece(WHITE, 'K', 0)
-
-    @classmethod
-    def WHITE_KNIGHT(cls):
-        return Piece(WHITE, 'N', 3)
-
-    @classmethod
-    def WHITE_PAWN(cls):
-        return Piece(WHITE, 'P', 1)
-
-    @classmethod
-    def BLACK_ROOK(cls):
-        return Piece(BLACK, 'r', 5)
-
-    @classmethod
-    def BLACK_BISHOP(cls):
-        return Piece(BLACK, 'b', 3)
-
-    @classmethod
-    def BLACK_QUEEN(cls):
-        return Piece(BLACK, 'q', 9)
-
-    @classmethod
-    def BLACK_KING(cls):
-        return Piece(BLACK, 'k', 0)
-
-    @classmethod
-    def BLACK_KNIGHT(cls):
-        return Piece(BLACK, 'n', 3)
-
-    @classmethod
-    def BLACK_PAWN(cls):
-        return Piece(BLACK, 'p', 1)
-
-    @classmethod
-    def EMPTY(cls):
-        return Piece(0, '.', 0)
 
     def add_attacking_square(self, square):
         self.attackingSquares.append(square)
@@ -572,10 +519,46 @@ class Piece:
                                                                                                            else "")
 
     def __eq__(self, other):
-        if isinstance(other, Piece):
+        if isinstance(other, ChessPiece):
             return other.symbol == self.symbol and other.color == self.color
         else:
             return False
+
+
+class Piece:
+    WHITE_KING = "WHITE KING"
+    WHITE_QUEEN = "WHITE_QUEEN"
+    WHITE_ROOK = "WHITE_ROOK"
+    WHITE_BISHOP = "WHITE_BISHOP"
+    WHITE_KNIGHT = "WHITE_KNIGHT"
+    WHITE_PAWN = "WHITE_PAWN"
+    BLACK_KING = "BLACK KING"
+    BLACK_QUEEN = "BLACK_QUEEN"
+    BLACK_ROOK = "BLACK_ROOK"
+    BLACK_BISHOP = "BLACK_BISHOP"
+    BLACK_KNIGHT = "BLACK_KNIGHT"
+    BLACK_PAWN = "BLACK_PAWN"
+    EMPTY = "EMPTY"
+
+    @classmethod
+    def generate(cls, pc):
+        generator = {
+            cls.WHITE_KING: (WHITE, 'K', 0),
+            cls.WHITE_QUEEN: (WHITE, 'Q', 9),
+            cls.WHITE_ROOK: (WHITE, 'R', 5),
+            cls.WHITE_BISHOP: (WHITE, 'B', 3),
+            cls.WHITE_KNIGHT: (WHITE, 'N', 3),
+            cls.WHITE_PAWN: (WHITE, 'P', 1),
+            cls.BLACK_KING: (BLACK, 'k', 0),
+            cls.BLACK_QUEEN: (BLACK, 'q', 9),
+            cls.BLACK_ROOK: (BLACK, 'r', 5),
+            cls.BLACK_BISHOP: (BLACK, 'b', 3),
+            cls.BLACK_KNIGHT: (BLACK, 'n', 3),
+            cls.BLACK_PAWN: (BLACK, 'p', 1),
+            cls.EMPTY: (0, '.', 0)
+        }
+        color, symbol, value = generator.get(pc)
+        return ChessPiece(color, symbol, value)
 
 
 class Move:
@@ -664,9 +647,9 @@ class Player:
         self.attack_computed = False
         self.check_computed = False
         self.pieces = []
-        self.king = Piece.EMPTY()
-        self.queen_rook = Piece.EMPTY()
-        self.king_rook = Piece.EMPTY()
+        self.king = Piece.generate(Piece.EMPTY)
+        self.queen_rook = Piece.generate(Piece.EMPTY)
+        self.king_rook = Piece.generate(Piece.EMPTY)
 
     def get_pieces(self):
         return self.pieces
@@ -756,11 +739,10 @@ class Player:
     def check_for_pinned_pieces(self, board):
         if self.pins_computed:
             return
-        pinned_line = ('', '', '')
         directions = ['NW', 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W']
         for direction in directions:
             i = 1
-            piece_found = Piece.EMPTY()
+            piece_found = Piece.generate(Piece.EMPTY)
             piece_found_flag = False
             square = get_square_in_direction(self.king.currentSquare, direction, 1)
             while square != "":
@@ -938,7 +920,7 @@ class Board:
     board_history = []
 
     def __init__(self, player1: Player = Player(WHITE), player2: Player = Player(BLACK)):
-        self.piece_board = [Piece.EMPTY()] * 64
+        self.piece_board = [Piece.generate(Piece.EMPTY)] * 64
         self.char_board = ['.'] * 64
         self.currentPlayer = player1
         self.currentOpponent = player2
@@ -1019,7 +1001,7 @@ class Board:
                     print(color_dark + fore_color + " " + ch + " ", end="")
             print(Back.RESET + Fore.RESET + "")
 
-    def place_piece_at(self, piece: Piece, pos: str, setup=False):
+    def place_piece_at(self, piece: ChessPiece, pos: str, setup=False):
         if setup:
             if piece.color == WHITE:
                 is_king_rook = piece.symbol == 'R' and pos[0] == 'H'
@@ -1035,38 +1017,38 @@ class Board:
         piece.place_at(pos)
 
     def setup_board(self):
-        self.place_piece_at(Piece.WHITE_ROOK(), 'A1', True)
-        self.place_piece_at(Piece.WHITE_KNIGHT(), 'B1', True)
-        self.place_piece_at(Piece.WHITE_BISHOP(), 'C1', True)
-        self.place_piece_at(Piece.WHITE_QUEEN(), 'D1', True)
-        self.place_piece_at(Piece.WHITE_KING(), 'E1', True)
-        self.place_piece_at(Piece.WHITE_BISHOP(), 'F1', True)
-        self.place_piece_at(Piece.WHITE_KNIGHT(), 'G1', True)
-        self.place_piece_at(Piece.WHITE_ROOK(), 'H1', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'A2', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'B2', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'C2', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'D2', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'E2', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'F2', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'G2', True)
-        self.place_piece_at(Piece.WHITE_PAWN(), 'H2', True)
-        self.place_piece_at(Piece.BLACK_ROOK(), 'A8', True)
-        self.place_piece_at(Piece.BLACK_KNIGHT(), 'B8', True)
-        self.place_piece_at(Piece.BLACK_BISHOP(), 'C8', True)
-        self.place_piece_at(Piece.BLACK_QUEEN(), 'D8', True)
-        self.place_piece_at(Piece.BLACK_KING(), 'E8', True)
-        self.place_piece_at(Piece.BLACK_BISHOP(), 'F8', True)
-        self.place_piece_at(Piece.BLACK_KNIGHT(), 'G8', True)
-        self.place_piece_at(Piece.BLACK_ROOK(), 'H8', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'A7', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'B7', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'C7', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'D7', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'E7', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'F7', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'G7', True)
-        self.place_piece_at(Piece.BLACK_PAWN(), 'H7', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_ROOK), 'A1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_KNIGHT), 'B1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_BISHOP), 'C1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_QUEEN), 'D1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_KING), 'E1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_BISHOP), 'F1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_KNIGHT), 'G1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_ROOK), 'H1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'A2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'B2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'C2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'D2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'E2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'F2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'G2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'H2', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_ROOK), 'A8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_KNIGHT), 'B8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_BISHOP), 'C8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_QUEEN), 'D8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_KING), 'E8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_BISHOP), 'F8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_KNIGHT), 'G8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_ROOK), 'H8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'A7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'B7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'C7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'D7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'E7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'F7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'G7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'H7', True)
 
     def get_piece_at(self, pos: str):
         ind = get_pos_from_square(pos)
@@ -1122,7 +1104,7 @@ class Board:
                 'N': 3
             }
             value = values.get(promoted.upper())
-            new_piece = Piece(moving_piece.color, symbol, value)
+            new_piece = ChessPiece(moving_piece.color, symbol, value)
             self.remove_piece_at(move.target, True)
             self.place_piece_at(new_piece, move.target, True)
         if is_en_pass:
@@ -1203,7 +1185,7 @@ class Board:
     def get_piece(self, pc, identifier, target, move=""):
         possible_pieces = self.get_possible_pieces(pc, target)
         if len(possible_pieces) == 0:
-            return Piece.EMPTY()
+            return Piece.generate(Piece.EMPTY)
         elif len(possible_pieces) == 1:
             return possible_pieces[0]
         elif len(possible_pieces) == 4 and pc.upper() == 'P':
@@ -1239,7 +1221,7 @@ class Board:
         elif permanent and piece.color == BLACK:
             self.get_black_player().remove_piece(piece)
         pos = get_pos_from_square(square)
-        self.piece_board[pos] = Piece.EMPTY()
+        self.piece_board[pos] = Piece.generate(Piece.EMPTY)
         self.char_board[pos] = '.'
         piece.removed = True
         piece.currentSquare = ""
