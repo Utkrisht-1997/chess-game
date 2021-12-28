@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name = 'chess-game',
   packages = ['chess_game'],
-  version = '0.1.1',
+  version = '0.2.0',
   license='GPL-3.0+',
   description = 'A simple chess library',
   author = 'Utkrisht Sinha',
@@ -10,7 +10,7 @@ setup(
   url = 'https://github.com/Utkrisht-1997/chess-game',
   download_url = 'https://github.com/Utkrisht-1997/chess-game/archive/refs/tags/v_011.tar.gz',
   keywords = ['chess', 'game', 'python'],
-  install_requires=[],
+  install_requires=['colorama'],
   classifiers=[
     'Development Status :: 3 - Alpha', 
     'Intended Audience :: Developers',

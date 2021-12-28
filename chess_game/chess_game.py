@@ -1,8 +1,20 @@
 import re
 import copy
+from colorama import Fore, Back
 
 WHITE = 1
 BLACK = -1
+
+squares_in_board = [
+    'A8', 'B8', 'C8', 'D8', 'E8', 'F8', 'G8', 'H8',
+    'A7', 'B7', 'C7', 'D7', 'E7', 'F7', 'G7', 'H7',
+    'A6', 'B6', 'C6', 'D6', 'E6', 'F6', 'G6', 'H6',
+    'A5', 'B5', 'C5', 'D5', 'E5', 'F5', 'G5', 'H5',
+    'A4', 'B4', 'C4', 'D4', 'E4', 'F4', 'G4', 'H4',
+    'A3', 'B3', 'C3', 'D3', 'E3', 'F3', 'G3', 'H3',
+    'A2', 'B2', 'C2', 'D2', 'E2', 'F2', 'G2', 'H2',
+    'A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'
+]
 
 
 def get_square_in_direction(square: str, direction, step: int):
@@ -75,12 +87,12 @@ def get_all_squares_between(start, finish):
     if file_start == file_end:
         file = file_start
         diff = 1 if file_end > file_start else -1
-        for r in range(rank_start+diff, rank_end+diff, 1 if rank_end > rank_start else -1):
+        for r in range(rank_start + diff, rank_end + diff, 1 if rank_end > rank_start else -1):
             squares.append(chr(file) + str(r))
     elif rank_start == rank_end:
         rank = rank_start
         diff = 1 if file_end > file_start else -1
-        for f in range(file_start+diff, file_end+diff, 1 if file_end > file_start else -1):
+        for f in range(file_start + diff, file_end + diff, 1 if file_end > file_start else -1):
             squares.append(chr(f) + str(rank))
     else:
         file_dif = 1 if file_end > file_start else -1
@@ -159,14 +171,88 @@ def get_piece_from_possibles(pieces, identifier):
 def get_pos_from_square(square: str):
     file_num = ord(square[0]) - 65
     rank_num = 8 - (ord(square[1]) - 48)
-    return 8*rank_num + file_num
+    return 8 * rank_num + file_num
 
 
-class InValidMove(Exception):
+def get_square_from(i: int, j: int):
+    ind = i * 8 + j
+    return squares_in_board[ind]
+
+
+def get_piece_from_char(c: str):
+    color = WHITE if c.isupper() else BLACK
+    value_dict = {
+        'K': 0,
+        'Q': 9,
+        'R': 5,
+        'B': 3,
+        'N': 3,
+        'P': 1
+    }
+    value = value_dict.get(c.upper())
+    return ChessPiece(color, c, value)
+
+
+def fen_to_char_array(fen: str):
+    fen_rows = fen.split("/")
+    ch_arr = ['.'] * 64
+    r = 0
+    for fen_row in fen_rows:
+        f = 0
+        for ch in fen_row:
+            if ch == '8':
+                continue
+            if 49 <= ord(ch) <= 55:
+                f = f + ord(ch) - 48
+                continue
+            ind = r * 8 + f
+            ch_arr[ind] = ch
+            f = f + 1
+        r = r + 1
+    return ch_arr
+
+
+def char_array_to_fen(char_board):
+    fen = ""
+    gap = 0
+    for i in range(64):
+        ch = char_board[i]
+        if ch == '.':
+            gap = gap + 1
+        else:
+            fen = fen + (str(gap) if gap != 0 else "") + ch
+            gap = 0
+        if (i + 1) % 8 == 0:
+            fen = fen + (str(gap) if gap != 0 else "") + ("/" if i != 63 else "")
+            gap = 0
+    return fen
+
+
+def are_squares_adjacent(square1, square2):
+    file1 = ord(square1[0])
+    rank1 = ord(square1[1]) - 48
+    file2 = ord(square2[0])
+    rank2 = ord(square2[1]) - 48
+    if rank1 - rank2 >= 2 or rank2 - rank1 >= 2:
+        return False
+    if file1 - file2 >= 2 or file2 - file1 >= 2:
+        return False
+    return True
+
+
+class InvalidMove(Exception):
     pass
 
 
-class Piece:
+class InvalidFen(Exception):
+    pass
+
+
+class InvalidBoard(Exception):
+    pass
+
+
+class ChessPiece:
 
     def __init__(self, color: int, symbol: str, value: int):
         self.color = color
@@ -177,61 +263,10 @@ class Piece:
         self.available_moves = []
         self.validSquareMoves = []
         self.pinned = False
+        self.pinned_line = ('', '', '')
         self.removed = False
         self.attack_computed = False
         self.move_computed = False
-
-    @classmethod
-    def WHITE_ROOK(cls):
-        return Piece(WHITE, 'R', 5)
-
-    @classmethod
-    def WHITE_BISHOP(cls):
-        return Piece(WHITE, 'B', 3)
-
-    @classmethod
-    def WHITE_QUEEN(cls):
-        return Piece(WHITE, 'Q', 9)
-
-    @classmethod
-    def WHITE_KING(cls):
-        return Piece(WHITE, 'K', 0)
-
-    @classmethod
-    def WHITE_KNIGHT(cls):
-        return Piece(WHITE, 'N', 3)
-
-    @classmethod
-    def WHITE_PAWN(cls):
-        return Piece(WHITE, 'P', 1)
-
-    @classmethod
-    def BLACK_ROOK(cls):
-        return Piece(BLACK, 'r', 5)
-
-    @classmethod
-    def BLACK_BISHOP(cls):
-        return Piece(BLACK, 'b', 3)
-
-    @classmethod
-    def BLACK_QUEEN(cls):
-        return Piece(BLACK, 'q', 9)
-
-    @classmethod
-    def BLACK_KING(cls):
-        return Piece(BLACK, 'k', 0)
-
-    @classmethod
-    def BLACK_KNIGHT(cls):
-        return Piece(BLACK, 'n', 3)
-
-    @classmethod
-    def BLACK_PAWN(cls):
-        return Piece(BLACK, 'p', 1)
-
-    @classmethod
-    def EMPTY(cls):
-        return Piece(0, '.', 0)
 
     def add_attacking_square(self, square):
         self.attackingSquares.append(square)
@@ -381,6 +416,9 @@ class Piece:
     def __filter_non_king_moves(self, in_check, attacking_line, checking_squares):
         if self.pinned:
             self.validSquareMoves.clear()
+            for move in self.available_moves:
+                if does_square_lie_in_line(move, self.pinned_line):
+                    self.validSquareMoves.append(move)
             return
         elif in_check and attacking_line is None and len(checking_squares) > 1:
             self.validSquareMoves.clear()
@@ -445,11 +483,13 @@ class Piece:
         else:
             self.__filter_king_moves(castle_long, castle_short, board)
 
-    def pin(self):
+    def pin(self, pinned_line):
         self.pinned = True
+        self.pinned_line = pinned_line
 
     def unpin(self):
         self.pinned = False
+        self.pinned_line = ('', '', '')
 
     def get_attacking_squares(self, board):
         if self.attack_computed:
@@ -489,13 +529,52 @@ class Piece:
             'N': 'Knight',
             'P': 'Pawn'
         }
-        return clrs[self.color] + ' ' + switcher.get(self.symbol.upper()) + " at " + self.currentSquare
+        return clrs[self.color] + ' ' + switcher.get(self.symbol.upper()) + " at " + self.currentSquare + (" is Pinned "
+                                                                                                           if
+                                                                                                           self.pinned
+                                                                                                           else "")
 
     def __eq__(self, other):
-        if isinstance(other, Piece):
+        if isinstance(other, ChessPiece):
             return other.symbol == self.symbol and other.color == self.color
         else:
             return False
+
+
+class Piece:
+    WHITE_KING = "WHITE KING"
+    WHITE_QUEEN = "WHITE_QUEEN"
+    WHITE_ROOK = "WHITE_ROOK"
+    WHITE_BISHOP = "WHITE_BISHOP"
+    WHITE_KNIGHT = "WHITE_KNIGHT"
+    WHITE_PAWN = "WHITE_PAWN"
+    BLACK_KING = "BLACK KING"
+    BLACK_QUEEN = "BLACK_QUEEN"
+    BLACK_ROOK = "BLACK_ROOK"
+    BLACK_BISHOP = "BLACK_BISHOP"
+    BLACK_KNIGHT = "BLACK_KNIGHT"
+    BLACK_PAWN = "BLACK_PAWN"
+    EMPTY = "EMPTY"
+
+    @classmethod
+    def generate(cls, pc):
+        generator = {
+            cls.WHITE_KING: (WHITE, 'K', 0),
+            cls.WHITE_QUEEN: (WHITE, 'Q', 9),
+            cls.WHITE_ROOK: (WHITE, 'R', 5),
+            cls.WHITE_BISHOP: (WHITE, 'B', 3),
+            cls.WHITE_KNIGHT: (WHITE, 'N', 3),
+            cls.WHITE_PAWN: (WHITE, 'P', 1),
+            cls.BLACK_KING: (BLACK, 'k', 0),
+            cls.BLACK_QUEEN: (BLACK, 'q', 9),
+            cls.BLACK_ROOK: (BLACK, 'r', 5),
+            cls.BLACK_BISHOP: (BLACK, 'b', 3),
+            cls.BLACK_KNIGHT: (BLACK, 'n', 3),
+            cls.BLACK_PAWN: (BLACK, 'p', 1),
+            cls.EMPTY: (0, '.', 0)
+        }
+        color, symbol, value = generator.get(pc)
+        return ChessPiece(color, symbol, value)
 
 
 class Move:
@@ -512,7 +591,7 @@ class Move:
         regex = r"^(([KQRBN]?)([a-h])?([1-8]?)(x?)([a-h][1-8])(=([QRBN]))?)|(O-O-O)|(O-O)"
         matches = re.findall(regex, notation)
         if len(matches) == 0:
-            raise InValidMove(notation + " move is not possible or valid")
+            raise InvalidMove(notation + " move is not possible or valid")
         pc = matches[0][1] if matches[0][1] != '' else 'P'
         id1 = matches[0][2]
         id2 = matches[0][3]
@@ -523,20 +602,20 @@ class Move:
         cs = matches[0][9]
         p = board.get_piece(pc, id1 + id2, tg, notation)
         if (p.symbol == '.' or p is None) and cl == '' and cs == '':
-            raise InValidMove(notation + " move is not possible or valid")
+            raise InvalidMove(notation + " move is not possible or valid")
         else:
             if cl != '':
                 moves = board.get_moves()
                 for move in moves:
                     if is_castling_long(move):
                         return Move(move, False)
-                raise InValidMove("Castling long not possible now")
+                raise InvalidMove("Castling long not possible now")
             elif cs != '':
                 moves = board.get_moves()
                 for move in moves:
                     if is_castling_short(move):
                         return Move(move, False)
-                raise InValidMove("Castling short not possible now")
+                raise InvalidMove("Castling short not possible now")
             else:
                 return Move((p, p.currentSquare, tg.upper(), pr), cp == 'x')
 
@@ -583,87 +662,28 @@ class Player:
         self.move_computed = False
         self.attack_computed = False
         self.check_computed = False
-        if color == WHITE:
-            self.king_rook = Piece.WHITE_ROOK()
-            self.king_knight = Piece.WHITE_KNIGHT()
-            self.king_bishop = Piece.WHITE_BISHOP()
-            self.king = Piece.WHITE_KING()
-            self.queen = Piece.WHITE_QUEEN()
-            self.queen_bishop = Piece.WHITE_BISHOP()
-            self.queen_knight = Piece.WHITE_KNIGHT()
-            self.queen_rook = Piece.WHITE_ROOK()
-            self.a_pawn = Piece.WHITE_PAWN()
-            self.b_pawn = Piece.WHITE_PAWN()
-            self.c_pawn = Piece.WHITE_PAWN()
-            self.d_pawn = Piece.WHITE_PAWN()
-            self.e_pawn = Piece.WHITE_PAWN()
-            self.f_pawn = Piece.WHITE_PAWN()
-            self.g_pawn = Piece.WHITE_PAWN()
-            self.h_pawn = Piece.WHITE_PAWN()
-        elif color == BLACK:
-            self.king_rook = Piece.BLACK_ROOK()
-            self.king_knight = Piece.BLACK_KNIGHT()
-            self.king_bishop = Piece.BLACK_BISHOP()
-            self.king = Piece.BLACK_KING()
-            self.queen = Piece.BLACK_QUEEN()
-            self.queen_bishop = Piece.BLACK_BISHOP()
-            self.queen_knight = Piece.BLACK_KNIGHT()
-            self.queen_rook = Piece.BLACK_ROOK()
-            self.a_pawn = Piece.BLACK_PAWN()
-            self.b_pawn = Piece.BLACK_PAWN()
-            self.c_pawn = Piece.BLACK_PAWN()
-            self.d_pawn = Piece.BLACK_PAWN()
-            self.e_pawn = Piece.BLACK_PAWN()
-            self.f_pawn = Piece.BLACK_PAWN()
-            self.g_pawn = Piece.BLACK_PAWN()
-            self.h_pawn = Piece.BLACK_PAWN()
-
-    def setup_pieces(self, board):
-        if self.color == WHITE:
-            board.place_piece_at(self.queen_rook, 'A1')
-            board.place_piece_at(self.queen_knight, 'B1')
-            board.place_piece_at(self.queen_bishop, 'C1')
-            board.place_piece_at(self.queen, 'D1')
-            board.place_piece_at(self.king, 'E1')
-            board.place_piece_at(self.king_bishop, 'F1')
-            board.place_piece_at(self.king_knight, 'G1')
-            board.place_piece_at(self.king_rook, 'H1')
-            board.place_piece_at(self.a_pawn, 'A2')
-            board.place_piece_at(self.b_pawn, 'B2')
-            board.place_piece_at(self.c_pawn, 'C2')
-            board.place_piece_at(self.d_pawn, 'D2')
-            board.place_piece_at(self.e_pawn, 'E2')
-            board.place_piece_at(self.f_pawn, 'F2')
-            board.place_piece_at(self.g_pawn, 'G2')
-            board.place_piece_at(self.h_pawn, 'H2')
-        elif self.color == BLACK:
-            board.place_piece_at(self.queen_rook, 'A8')
-            board.place_piece_at(self.queen_knight, 'B8')
-            board.place_piece_at(self.queen_bishop, 'C8')
-            board.place_piece_at(self.queen, 'D8')
-            board.place_piece_at(self.king, 'E8')
-            board.place_piece_at(self.king_bishop, 'F8')
-            board.place_piece_at(self.king_knight, 'G8')
-            board.place_piece_at(self.king_rook, 'H8')
-            board.place_piece_at(self.a_pawn, 'A7')
-            board.place_piece_at(self.b_pawn, 'B7')
-            board.place_piece_at(self.c_pawn, 'C7')
-            board.place_piece_at(self.d_pawn, 'D7')
-            board.place_piece_at(self.e_pawn, 'E7')
-            board.place_piece_at(self.f_pawn, 'F7')
-            board.place_piece_at(self.g_pawn, 'G7')
-            board.place_piece_at(self.h_pawn, 'H7')
+        self.pieces = []
+        self.king = Piece.generate(Piece.EMPTY)
+        self.queen_rook = Piece.generate(Piece.EMPTY)
+        self.king_rook = Piece.generate(Piece.EMPTY)
 
     def get_pieces(self):
-        pieces = [self.queen_rook, self.queen_knight, self.queen_bishop, self.queen,
-                  self.king, self.king_bishop, self.king_knight, self.king_rook,
-                  self.a_pawn, self.b_pawn, self.c_pawn, self.d_pawn,
-                  self.e_pawn, self.f_pawn, self.g_pawn, self.h_pawn]
-        active_pieces = []
-        for piece in pieces:
-            if not piece.is_dead_or_empty():
-                active_pieces.append(piece)
-        return active_pieces
+        return self.pieces
+
+    def add_piece(self, piece, is_king=False, is_king_rook=False, is_queen_rook=False):
+        self.pieces.append(piece)
+        if is_king:
+            self.king = piece
+        elif is_king_rook:
+            self.king_rook = piece
+        elif is_queen_rook:
+            self.queen_rook = piece
+
+    def remove_piece(self, piece):
+        for i in range(len(self.pieces)):
+            if piece == self.pieces[i] and piece.currentSquare == self.pieces[i].currentSquare:
+                self.pieces.pop(i)
+                break
 
     def compute_attacking_squares(self, board):
         if self.attack_computed:
@@ -682,6 +702,7 @@ class Player:
             return self.moves
         else:
             self.is_in_check(board)
+            self.check_for_pinned_pieces(board)
             castle_long = self.can_castle_long(board, self.in_check)
             castle_short = self.can_castle_short(board, self.in_check)
             self.moves.clear()
@@ -737,7 +758,7 @@ class Player:
         directions = ['NW', 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W']
         for direction in directions:
             i = 1
-            piece_found = Piece.EMPTY()
+            piece_found = Piece.generate(Piece.EMPTY)
             piece_found_flag = False
             square = get_square_in_direction(self.king.currentSquare, direction, 1)
             while square != "":
@@ -749,17 +770,17 @@ class Player:
                     break
                 elif piece_found_flag:
                     if piece.color != self.color and piece.symbol.upper() == 'Q':
-                        piece_found.pin()
+                        piece_found.pin((direction, self.king.currentSquare, square))
                         break
                     elif piece.color != self.color and direction in ['N', 'S', 'E', 'W'] and \
                             piece.symbol.upper() == 'R':
-                        piece_found.pin()
+                        piece_found.pin((direction, self.king.currentSquare, square))
                         break
                     elif piece.color != self.color and direction in ['NW', 'SE', 'NE', 'SW'] and \
                             piece.symbol.upper() == 'B':
-                        piece_found.pin()
+                        piece_found.pin((direction, self.king.currentSquare, square))
                         break
-                    else:
+                    elif piece.symbol != '.':
                         break
                 i = i + 1
                 square = get_square_in_direction(self.king.currentSquare, direction, i)
@@ -802,7 +823,7 @@ class Player:
         king_file = ord(self.king.currentSquare[0])
         king_target = chr(king_file - 2) + king_rank
 
-        if not self.castle_long or in_check:
+        if not self.castle_long or in_check or self.king_rook.symbol == '.' or self.queen_rook.symbol == '.':
             return False, king_target
 
         if board.is_between_empty_safe_straight(self.king.currentSquare, self.queen_rook.currentSquare, self):
@@ -910,35 +931,143 @@ class Player:
     def disable_short_castling(self):
         self.castle_short = False
 
+    def has_king(self):
+        return self.king.symbol != '.' and self.king.currentSquare != ""
+
 
 class Board:
-
     board_history = []
 
-    def __init__(self, player1: Player, player2: Player):
-        self.piece_board = [Piece.EMPTY()] * 64
+    def __init__(self, player1: Player = Player(WHITE), player2: Player = Player(BLACK)):
+        self.piece_board = [Piece.generate(Piece.EMPTY)] * 64
         self.char_board = ['.'] * 64
         self.currentPlayer = player1
         self.currentOpponent = player2
         self.moveCounter = 0
         self.moveCounter75 = 0
         self.enPassant = ""
+        self.en_target = ""
 
-    def show(self):
+    @classmethod
+    def from_fen(cls, fen: str):
+        reg_fen = r"^(([1-8rnbqkpRNBQKP]+/){7}[1-8rnbqkpRNBQKP]+) ([wb]) ([KQkq]{1,4}|-) ([a-h][1-8]|-) (\d+) (\d+)$"
+        matches = re.findall(reg_fen, fen)
+        if len(matches) == 0:
+            raise InvalidFen("Fen provided is not valid")
+        else:
+            fen_board = matches[0][0]
+            player = matches[0][2]
+            castlings = matches[0][3]
+            current_player = Player(WHITE) if player.lower() == 'w' else Player(BLACK)
+            opponent = Player(BLACK) if player.lower() == 'w' else Player(WHITE)
+            b = Board(current_player, opponent)
+            b.char_board = fen_to_char_array(fen_board)
+            if 'K' in castlings:
+                b.get_white_player().castle_short = True
+            if 'Q' in castlings:
+                b.get_white_player().castle_long = True
+            if 'k' in castlings:
+                b.get_black_player().castle_long = True
+            if 'q' in castlings:
+                b.get_black_player().castle_short = True
+            for i in range(63):
+                ch = b.char_board[i]
+                if ch == '.':
+                    continue
+                piece = get_piece_from_char(ch)
+                pos = squares_in_board[i]
+                b.place_piece_at(piece, pos, True)
+            b.enPassant = matches[0][4] if matches[0][4] != '-' else ''
+            b.moveCounter75 = int(matches[0][4])
+            b.moveCounter = int(matches[0][5])
+        return b
+
+    def to_fen(self):
+        fen_board = char_array_to_fen(self.char_board)
+        player_turn = 'w' if self.currentPlayer.color == WHITE else 'b'
+        castles = ""
+        castles = castles + ("K" if self.get_white_player().castle_short else "")
+        castles = castles + ("Q" if self.get_white_player().castle_long else "")
+        castles = castles + ("k" if self.get_black_player().castle_short else "")
+        castles = castles + ("q" if self.get_black_player().castle_long else "")
+        if castles == "":
+            castles = '-'
+        en_pass = "-" if self.enPassant == "" else self.enPassant
+        half_move = self.moveCounter75
+        full_move = self.moveCounter
+        return fen_board + " " + player_turn + " " + castles + " " + en_pass + " " + str(half_move) + " " + \
+            str(full_move)
+
+    def print_ascii(self):
         for i in range(64):
             print(self.char_board[i], end="  ")
             if i != 0 and (i + 1) % 8 == 0:
                 print()
 
-    def place_piece_at(self, piece: Piece, pos: str):
+    def print_colored(self):
+        color_dark = Back.LIGHTBLUE_EX
+        color_light = Back.LIGHTWHITE_EX
+        for r in range(8):
+            for f in range(8):
+                ind = 8 * r + f
+                ch = self.char_board[ind]
+                if ch == '.':
+                    ch = " "
+                fore_color = Fore.BLACK if ch.islower() else Fore.MAGENTA
+                if r % 2 == f % 2:
+                    print(color_light + fore_color + " " + ch + " ", end="")
+                else:
+                    print(color_dark + fore_color + " " + ch + " ", end="")
+            print(Back.RESET + Fore.RESET + "")
+
+    def place_piece_at(self, piece: ChessPiece, pos: str, setup=False):
+        if setup:
+            if piece.color == WHITE:
+                is_king_rook = piece.symbol == 'R' and pos[0] == 'H'
+                is_queen_rook = piece.symbol == 'R' and pos[0] == 'A'
+                self.get_white_player().add_piece(piece, piece.symbol == 'K', is_king_rook, is_queen_rook)
+            elif piece.color == BLACK:
+                is_king_rook = piece.symbol == 'r' and pos[0] == 'H'
+                is_queen_rook = piece.symbol == 'r' and pos[0] == 'A'
+                self.get_black_player().add_piece(piece, piece.symbol == 'k', is_king_rook, is_queen_rook)
         ind = get_pos_from_square(pos)
         self.piece_board[ind] = piece
         self.char_board[ind] = piece.symbol
         piece.place_at(pos)
 
     def setup_board(self):
-        self.currentPlayer.setup_pieces(self)
-        self.currentOpponent.setup_pieces(self)
+        self.place_piece_at(Piece.generate(Piece.WHITE_ROOK), 'A1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_KNIGHT), 'B1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_BISHOP), 'C1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_QUEEN), 'D1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_KING), 'E1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_BISHOP), 'F1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_KNIGHT), 'G1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_ROOK), 'H1', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'A2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'B2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'C2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'D2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'E2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'F2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'G2', True)
+        self.place_piece_at(Piece.generate(Piece.WHITE_PAWN), 'H2', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_ROOK), 'A8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_KNIGHT), 'B8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_BISHOP), 'C8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_QUEEN), 'D8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_KING), 'E8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_BISHOP), 'F8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_KNIGHT), 'G8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_ROOK), 'H8', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'A7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'B7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'C7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'D7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'E7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'F7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'G7', True)
+        self.place_piece_at(Piece.generate(Piece.BLACK_PAWN), 'H7', True)
 
     def get_piece_at(self, pos: str):
         ind = get_pos_from_square(pos)
@@ -953,19 +1082,21 @@ class Board:
         return square in attacks
 
     def make_move(self, move_notation):
-        self.enPassant = ""
+        self.check_valid()
         move = Move.from_notation(move_notation, self)
+        is_en_pass = self.enPassant != "" and move.target.upper() == self.enPassant.upper()
+        self.enPassant = ""
         is_king_rook = move.start == self.currentPlayer.king_rook.currentSquare
         is_queen_rook = move.start == self.currentPlayer.queen_rook.currentSquare
         promoted = ""
         if is_promotion((move.piece, move.start, move.target)):
             promoted = move.promoted
             if promoted == '':
-                raise InValidMove("Promoted piece not decided")
+                raise InvalidMove("Promoted piece not decided")
         if move is None:
             return
         moving_piece = self.remove_piece_at(move.start)
-        self.remove_piece_at(move.target)
+        self.remove_piece_at(move.target, True)
         self.place_piece_at(moving_piece, move.target)
         if move_notation == 'O-O':
             king_rook = self.remove_piece_at(self.currentPlayer.king_rook.currentSquare)
@@ -993,11 +1124,15 @@ class Board:
                 'N': 3
             }
             value = values.get(promoted.upper())
-            new_piece = Piece(moving_piece.color, symbol, value)
-            self.remove_piece_at(move.target)
-            self.place_piece_at(new_piece, move.target)
+            new_piece = ChessPiece(moving_piece.color, symbol, value)
+            self.remove_piece_at(move.target, True)
+            self.place_piece_at(new_piece, move.target, True)
+        if is_en_pass:
+            self.remove_piece_at(self.en_target, True)
+        self.en_target = ""
         if moving_piece.symbol.upper() == 'P' and ((ord(move.start[1]) - ord(move.target[1])) in [2, -2]):
-            self.enPassant = move.start[0] + chr((ord(move.start[1]) + ord(move.target[1]))//2)
+            self.enPassant = move.start[0] + chr((ord(move.start[1]) + ord(move.target[1])) // 2)
+            self.en_target = move.target
         self.refresh()
         self.switch_turn()
 
@@ -1045,6 +1180,8 @@ class Board:
         return self.currentOpponent if player.color == self.currentPlayer.color else self.currentPlayer
 
     def is_between_empty_safe_straight(self, square1, square2, player):
+        if square2 == "" or square1 == "":
+            return False
         if not is_square_in_same_line(square1, square2):
             return False
         betweens = get_all_squares_between(square1, square2)
@@ -1068,11 +1205,13 @@ class Board:
     def get_piece(self, pc, identifier, target, move=""):
         possible_pieces = self.get_possible_pieces(pc, target)
         if len(possible_pieces) == 0:
-            return Piece.EMPTY()
+            return Piece.generate(Piece.EMPTY)
         elif len(possible_pieces) == 1:
             return possible_pieces[0]
+        elif len(possible_pieces) == 4 and pc.upper() == 'P':
+            return possible_pieces[0]
         elif identifier == '':
-            raise InValidMove(move + ' move is ambiguous')
+            raise InvalidMove(move + ' move is ambiguous')
         else:
             return get_piece_from_possibles(possible_pieces, identifier)
 
@@ -1093,10 +1232,16 @@ class Board:
             notations.append(m.to_notation(self))
         return notations
 
-    def remove_piece_at(self, square):
+    def remove_piece_at(self, square, permanent=False):
+        if square == "":
+            return
         piece = self.get_piece_at(square)
+        if permanent and piece.color == WHITE:
+            self.get_white_player().remove_piece(piece)
+        elif permanent and piece.color == BLACK:
+            self.get_black_player().remove_piece(piece)
         pos = get_pos_from_square(square)
-        self.piece_board[pos] = Piece.EMPTY()
+        self.piece_board[pos] = Piece.generate(Piece.EMPTY)
         self.char_board[pos] = '.'
         piece.removed = True
         piece.currentSquare = ""
@@ -1120,3 +1265,21 @@ class Board:
 
     def is_en_passant(self, square):
         return self.enPassant.upper() == square.upper()
+
+    def get_white_player(self):
+        if self.currentPlayer.color == WHITE:
+            return self.currentPlayer
+        else:
+            return self.currentOpponent
+
+    def get_black_player(self):
+        if self.currentPlayer.color == WHITE:
+            return self.currentOpponent
+        else:
+            return self.currentPlayer
+
+    def check_valid(self):
+        if not self.currentPlayer.has_king() or not self.currentOpponent.has_king():
+            raise InvalidBoard("Both player must have king on board")
+        if are_squares_adjacent(self.currentPlayer.king.currentSquare, self.currentOpponent.king.currentSquare):
+            raise InvalidBoard("King cannot be placed adjacent to each other")
