@@ -228,11 +228,27 @@ def char_array_to_fen(char_board):
     return fen
 
 
+def are_squares_adjacent(square1, square2):
+    file1 = ord(square1[0])
+    rank1 = ord(square1[1]) - 48
+    file2 = ord(square2[0])
+    rank2 = ord(square2[1]) - 48
+    if rank1 - rank2 >= 2 or rank2 - rank1 >= 2:
+        return False
+    if file1 - file2 >= 2 or file2 - file1 >= 2:
+        return False
+    return True
+
+
 class InvalidMove(Exception):
     pass
 
 
 class InvalidFen(Exception):
+    pass
+
+
+class InvalidBoard(Exception):
     pass
 
 
@@ -915,6 +931,9 @@ class Player:
     def disable_short_castling(self):
         self.castle_short = False
 
+    def has_king(self):
+        return self.king.symbol != '.' and self.king.currentSquare != ""
+
 
 class Board:
     board_history = []
@@ -1063,6 +1082,7 @@ class Board:
         return square in attacks
 
     def make_move(self, move_notation):
+        self.check_valid()
         move = Move.from_notation(move_notation, self)
         is_en_pass = self.enPassant != "" and move.target.upper() == self.enPassant.upper()
         self.enPassant = ""
@@ -1257,3 +1277,9 @@ class Board:
             return self.currentOpponent
         else:
             return self.currentPlayer
+
+    def check_valid(self):
+        if not self.currentPlayer.has_king() or not self.currentOpponent.has_king():
+            raise InvalidBoard("Both player must have king on board")
+        if are_squares_adjacent(self.currentPlayer.king.currentSquare, self.currentOpponent.king.currentSquare):
+            raise InvalidBoard("King cannot be placed adjacent to each other")
