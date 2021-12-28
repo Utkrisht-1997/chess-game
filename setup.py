@@ -8,7 +8,7 @@ setup(
   author = 'Utkrisht Sinha',
   author_email = '',
   url = 'https://github.com/Utkrisht-1997/chess-game',
-  download_url = 'https://github.com/Utkrisht-1997/chess-game/archive/refs/tags/v_011.tar.gz',
+  download_url = 'https://github.com/Utkrisht-1997/chess-game/archive/refs/tags/v_020.tar.gz',
   keywords = ['chess', 'game', 'python'],
   install_requires=['colorama'],
   classifiers=[
