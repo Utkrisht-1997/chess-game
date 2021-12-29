@@ -1149,7 +1149,6 @@ class Board:
         is_king_rook = move.start == self.currentPlayer.king_rook.currentSquare
         is_queen_rook = move.start == self.currentPlayer.queen_rook.currentSquare
         promoted = ""
-        record = ""
         if is_promotion((move.piece, move.start, move.target)):
             promoted = move.promoted
             if promoted == '':
@@ -1202,9 +1201,9 @@ class Board:
         self.switch_turn()
         if moving_piece.color == WHITE:
             self.record_file = self.record_file + str(self.moveCounter) + ". " + move.to_notation(self)
-            self.moveCounter = self.moveCounter + 1
         else:
             self.record_file = self.record_file + " " + move.to_notation(self) + " "
+            self.moveCounter = self.moveCounter + 1
         Board.board_history.append(self.hash_state())
 
     def simulate_move(self, move):
@@ -1360,3 +1359,32 @@ class Board:
             raise InvalidBoard("Both player must have king on board")
         if are_squares_adjacent(self.currentPlayer.king.currentSquare, self.currentOpponent.king.currentSquare):
             raise InvalidBoard("King cannot be placed adjacent to each other")
+
+    def is_game_over(self):
+        return self.is_stalemate() or \
+               self.is_checkmate() or self.is_draw_by_insufficient_material() or \
+               self.is_draw_by_75_move_rule() or self.is_draw_by_five_fold_repetition()
+
+    def get_info(self):
+        info = BoardInfo()
+        info.check = self.is_check()
+        info.check_mate = self.is_checkmate()
+        info.stale_mate = self.is_stalemate()
+        info.move_count = self.moveCounter
+        info.game_over = self.is_game_over()
+        return info
+
+
+class BoardInfo:
+
+    def __init__(self):
+        self.check = False
+        self.check_mate = False
+        self.stale_mate = False
+        self.move_count = False
+        self.game_over = False
+
+    def __str__(self):
+        return "{ check: " + str(self.check) + ", check_mate: " + str(self.check_mate) + ", stale_mate: " + \
+               str(self.stale_mate) + ", move_count: " + str(self.move_count) + ", game_over: " + str(self.game_over) +\
+               "}"
