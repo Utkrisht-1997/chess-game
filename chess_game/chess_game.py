@@ -413,6 +413,55 @@ class ChessPiece:
     def __get_pawn_attacks(self):
         return get_pawn_attack_squares(self.currentSquare, self.color)
 
+    def __get_rook_attacks(self, board):
+        directions = ['N', 'S', 'E', 'W']
+        attacks = []
+        for direction in directions:
+            i = 1
+            square = get_square_in_direction(self.currentSquare, direction, i)
+            while square != "":
+                piece = board.get_piece_at(square)
+                if piece.symbol != '.':
+                    attacks.append(square)
+                    break
+                else:
+                    attacks.append(square)
+                    i = i + 1
+                    square = get_square_in_direction(self.currentSquare, direction, i)
+        return attacks
+
+    def __get_bishop_attacks(self, board):
+        directions = ['NW', 'SE', 'NE', 'SW']
+        attacks = []
+        for direction in directions:
+            i = 1
+            square = get_square_in_direction(self.currentSquare, direction, i)
+            while square != "":
+                piece = board.get_piece_at(square)
+                if piece.symbol != '.':
+                    attacks.append(square)
+                    break
+                else:
+                    attacks.append(square)
+                    i = i + 1
+                    square = get_square_in_direction(self.currentSquare, direction, i)
+        return attacks
+
+    def __get_queen_attacks(self, board):
+        rook = self.__get_rook_attacks(board)
+        bishop = self.__get_bishop_attacks(board)
+        moves = rook + bishop
+        return moves
+
+    def __get_king_attacks(self):
+        directions = ['NW', 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W']
+        attacks = []
+        for direction in directions:
+            square = get_square_in_direction(self.currentSquare, direction, 1)
+            if square != "":
+                attacks.append(square)
+        return attacks
+
     def __filter_non_king_moves(self, in_check, attacking_line, checking_squares):
         if self.pinned:
             self.validSquareMoves.clear()
@@ -465,14 +514,14 @@ class ChessPiece:
     def get_attacks(self, board):
         switcher = {
             'P': self.__get_pawn_attacks,
-            'K': self.__get_king_moves,
+            'K': self.__get_king_attacks,
             'N': self.__get_knight_moves,
-            'B': self.__get_bishop_moves,
-            'R': self.__get_rook_moves,
-            'Q': self.__get_queen_moves,
+            'B': self.__get_bishop_attacks,
+            'R': self.__get_rook_attacks,
+            'Q': self.__get_queen_attacks,
         }
         func = switcher[self.symbol.upper()]
-        if self.symbol.upper() == 'P':
+        if self.symbol.upper() == 'P' or self.symbol.upper() == 'K':
             return func()
         else:
             return func(board)
@@ -634,7 +683,13 @@ class Move:
             return 'O-O-O'
         if cs:
             return 'O-O'
-        move_notation = pc + identifier + ('x' if cp else '') + tg.lower() + ('=' if pr != '' else '') + pr
+        check_or_mate = ""
+        if board.is_checkmate():
+            check_or_mate = "#"
+        elif board.is_check():
+            check_or_mate = "+"
+        move_notation = pc + identifier.lower() + ('x' if cp else '') + tg.lower() + ('=' if pr != '' else '') + pr + \
+                        check_or_mate
         return move_notation
 
     def get_move(self):
@@ -934,6 +989,9 @@ class Player:
     def has_king(self):
         return self.king.symbol != '.' and self.king.currentSquare != ""
 
+    def get_valid_move_count(self, board):
+        return len(self.get_moves(board))
+
 
 class Board:
     board_history = []
@@ -943,10 +1001,12 @@ class Board:
         self.char_board = ['.'] * 64
         self.currentPlayer = player1
         self.currentOpponent = player2
-        self.moveCounter = 0
+        self.moveCounter = 1
         self.moveCounter75 = 0
         self.enPassant = ""
         self.en_target = ""
+        self.record_file = ""
+        Board.board_history.append(self.hash_state())
 
     @classmethod
     def from_fen(cls, fen: str):
@@ -1089,6 +1149,7 @@ class Board:
         is_king_rook = move.start == self.currentPlayer.king_rook.currentSquare
         is_queen_rook = move.start == self.currentPlayer.queen_rook.currentSquare
         promoted = ""
+        record = ""
         if is_promotion((move.piece, move.start, move.target)):
             promoted = move.promoted
             if promoted == '':
@@ -1096,7 +1157,7 @@ class Board:
         if move is None:
             return
         moving_piece = self.remove_piece_at(move.start)
-        self.remove_piece_at(move.target, True)
+        captured_piece = self.remove_piece_at(move.target, True)
         self.place_piece_at(moving_piece, move.target)
         if move_notation == 'O-O':
             king_rook = self.remove_piece_at(self.currentPlayer.king_rook.currentSquare)
@@ -1133,8 +1194,18 @@ class Board:
         if moving_piece.symbol.upper() == 'P' and ((ord(move.start[1]) - ord(move.target[1])) in [2, -2]):
             self.enPassant = move.start[0] + chr((ord(move.start[1]) + ord(move.target[1])) // 2)
             self.en_target = move.target
+        if moving_piece.symbol.upper() == 'P' or captured_piece.symbol != '.':
+            self.moveCounter75 = 0
+        else:
+            self.moveCounter75 = self.moveCounter75 + 1
         self.refresh()
         self.switch_turn()
+        if moving_piece.color == WHITE:
+            self.record_file = self.record_file + str(self.moveCounter) + ". " + move.to_notation(self)
+            self.moveCounter = self.moveCounter + 1
+        else:
+            self.record_file = self.record_file + " " + move.to_notation(self) + " "
+        Board.board_history.append(self.hash_state())
 
     def simulate_move(self, move):
         simulated_board = copy.deepcopy(self)
@@ -1159,13 +1230,19 @@ class Board:
         hash_value = self.hash_state()
         return Board.board_history.count(hash_value) >= 5
 
-    def is_stalemate(self, player):
-        pass
+    def is_stalemate(self, player=None):
+        if player is None:
+            player = self.currentPlayer
+        return (not self.is_check(player)) and player.get_valid_move_count(self) == 0
 
-    def is_checkmate(self, player):
-        pass
+    def is_checkmate(self, player=None):
+        if player is None:
+            player = self.currentPlayer
+        return self.is_check(player) and player.get_valid_move_count(self) == 0
 
-    def is_check(self, player):
+    def is_check(self, player=None):
+        if player is None:
+            player = self.currentPlayer
         attacks = []
         king_pos = ""
         if player.color == self.currentPlayer.color:
