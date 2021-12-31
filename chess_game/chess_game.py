@@ -1168,7 +1168,7 @@ class Board:
             castling_move = (castle_start, king_left)
         elif move_notation == 'O-O-O':
             castle_start = self.currentPlayer.king_rook.currentSquare
-            queen_rook = self.remove_piece_at(self.currentPlayer.queen_rook.currentSquare)
+            queen_rook = self.remove_piece_at(castle_start)
             king_right = get_square_in_direction(move.target, 'E', 1)
             self.remove_piece_at(king_right)
             self.place_piece_at(queen_rook, king_right)
