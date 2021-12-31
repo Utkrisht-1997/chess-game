@@ -1158,16 +1158,21 @@ class Board:
         moving_piece = self.remove_piece_at(move.start)
         captured_piece = self.remove_piece_at(move.target, True)
         self.place_piece_at(moving_piece, move.target)
+        castling_move = ('', '')
         if move_notation == 'O-O':
-            king_rook = self.remove_piece_at(self.currentPlayer.king_rook.currentSquare)
+            castle_start = self.currentPlayer.king_rook.currentSquare
+            king_rook = self.remove_piece_at(castle_start)
             king_left = get_square_in_direction(move.target, 'W', 1)
             self.remove_piece_at(king_left)
             self.place_piece_at(king_rook, king_left)
+            castling_move = (castle_start, king_left)
         elif move_notation == 'O-O-O':
+            castle_start = self.currentPlayer.king_rook.currentSquare
             queen_rook = self.remove_piece_at(self.currentPlayer.queen_rook.currentSquare)
             king_right = get_square_in_direction(move.target, 'E', 1)
             self.remove_piece_at(king_right)
             self.place_piece_at(queen_rook, king_right)
+            castling_move = (castle_start, king_right)
         if moving_piece.symbol.upper() == 'K':
             self.currentPlayer.disable_long_castling()
             self.currentPlayer.disable_short_castling()
@@ -1199,12 +1204,14 @@ class Board:
             self.moveCounter75 = self.moveCounter75 + 1
         self.refresh()
         self.switch_turn()
+        notation = move.to_notation(self)
         if moving_piece.color == WHITE:
-            self.record_file = self.record_file + str(self.moveCounter) + ". " + move.to_notation(self)
+            self.record_file = self.record_file + str(self.moveCounter) + ". " + notation
         else:
-            self.record_file = self.record_file + " " + move.to_notation(self) + " "
+            self.record_file = self.record_file + " " + notation + " "
             self.moveCounter = self.moveCounter + 1
         Board.board_history.append(self.hash_state())
+        return (move.start, move.target), castling_move, notation
 
     def simulate_move(self, move):
         simulated_board = copy.deepcopy(self)
