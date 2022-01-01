@@ -634,6 +634,7 @@ class Move:
         self.target = move[2]
         self.capture = capture
         self.promoted = move[3]
+        self.identifier = ""
 
     @classmethod
     def from_notation(cls, notation: str, board):
@@ -649,7 +650,8 @@ class Move:
         pr = matches[0][7]
         cl = matches[0][8]
         cs = matches[0][9]
-        p = board.get_piece(pc, id1 + id2, tg, notation)
+        identifier = id1 + id2
+        p = board.get_piece(pc, identifier, tg, notation)
         if (p.symbol == '.' or p is None) and cl == '' and cs == '':
             raise InvalidMove(notation + " move is not possible or valid")
         else:
@@ -666,7 +668,9 @@ class Move:
                         return Move(move, False)
                 raise InvalidMove("Castling short not possible now")
             else:
-                return Move((p, p.currentSquare, tg.upper(), pr), cp == 'x')
+                move = Move((p, p.currentSquare, tg.upper(), pr), cp == 'x')
+                move.identifier = identifier
+                return move
 
     def to_notation(self, board):
         pc = self.piece.symbol.upper() if self.piece.symbol.upper() != 'P' else ''
@@ -1141,38 +1145,60 @@ class Board:
             attacks = self.currentPlayer.get_attacks(self)
         return square in attacks
 
-    def make_move(self, move_notation):
+    def make_move_by_notation(self, move_notation):
         self.check_valid()
         move = Move.from_notation(move_notation, self)
-        is_en_pass = self.enPassant != "" and move.target.upper() == self.enPassant.upper()
+        if move is None:
+            raise InvalidMove('Move not possible')
+        return self.make_move_by_from_to(move.start, move.target, move.promoted, move.identifier)
+
+    def make_move_by_from_to(self, from_pos, to_pos, promoted_to="", identifier=None):
+        if from_pos == "" or to_pos == "" or from_pos is None or to_pos is None:
+            raise InvalidMove("From and to are not defined")
+        if to_pos not in self.get_moves_for_square(from_pos):
+            raise InvalidMove('Move not possible')
+        captured_piece = self.remove_piece_at(to_pos, True)
+        captured_notation = 'x' if captured_piece.symbol != '.' else ''
+        if identifier is None:
+            piece = self.get_piece_at(from_pos)
+            if piece.symbol.upper() == 'P' and captured_piece.symbol != '.':
+                identifier = from_pos[0]
+            else:
+                identifier = get_move_indicator((piece, from_pos, to_pos, promoted_to), self.get_moves())
+        is_en_pass = self.enPassant != "" and to_pos.upper() == self.enPassant.upper()
         self.enPassant = ""
-        is_king_rook = move.start == self.currentPlayer.king_rook.currentSquare
-        is_queen_rook = move.start == self.currentPlayer.queen_rook.currentSquare
+        if is_en_pass:
+            captured_notation = 'x'
+        is_king_rook = from_pos == self.currentPlayer.king_rook.currentSquare
+        is_queen_rook = from_pos == self.currentPlayer.queen_rook.currentSquare
         promoted = ""
-        if is_promotion((move.piece, move.start, move.target)):
-            promoted = move.promoted
+        promoted_notation = ""
+        if is_promotion((self.get_piece_at(from_pos), from_pos, to_pos)):
+            promoted = promoted_to
+            promoted_notation = "=" + promoted_to
             if promoted == '':
                 raise InvalidMove("Promoted piece not decided")
-        if move is None:
-            return
-        moving_piece = self.remove_piece_at(move.start)
-        captured_piece = self.remove_piece_at(move.target, True)
-        self.place_piece_at(moving_piece, move.target)
+        moving_piece = self.remove_piece_at(from_pos)
+        self.place_piece_at(moving_piece, to_pos)
         castling_move = ('', '')
-        if move_notation == 'O-O':
+        notation = '' if moving_piece.symbol.upper() == 'P' else moving_piece.symbol.upper()
+        notation = notation + identifier.lower() + captured_notation + to_pos.lower() + promoted_notation
+        if moving_piece.symbol.upper() == 'K' and ord(from_pos[0])-ord(to_pos[0]) == -2:
             castle_start = self.currentPlayer.king_rook.currentSquare
             king_rook = self.remove_piece_at(castle_start)
-            king_left = get_square_in_direction(move.target, 'W', 1)
+            king_left = get_square_in_direction(to_pos, 'W', 1)
             self.remove_piece_at(king_left)
             self.place_piece_at(king_rook, king_left)
             castling_move = (castle_start, king_left)
-        elif move_notation == 'O-O-O':
+            notation = 'O-O'
+        elif moving_piece.symbol.upper() == 'K' and ord(from_pos[0])-ord(to_pos[0]) == 2:
             castle_start = self.currentPlayer.king_rook.currentSquare
             queen_rook = self.remove_piece_at(castle_start)
-            king_right = get_square_in_direction(move.target, 'E', 1)
+            king_right = get_square_in_direction(to_pos, 'E', 1)
             self.remove_piece_at(king_right)
             self.place_piece_at(queen_rook, king_right)
             castling_move = (castle_start, king_right)
+            notation = 'O-O-O'
         if moving_piece.symbol.upper() == 'K':
             self.currentPlayer.disable_long_castling()
             self.currentPlayer.disable_short_castling()
@@ -1190,32 +1216,38 @@ class Board:
             }
             value = values.get(promoted.upper())
             new_piece = ChessPiece(moving_piece.color, symbol, value)
-            self.remove_piece_at(move.target, True)
-            self.place_piece_at(new_piece, move.target, True)
+            self.remove_piece_at(to_pos, True)
+            self.place_piece_at(new_piece, to_pos, True)
         if is_en_pass:
             self.remove_piece_at(self.en_target, True)
         self.en_target = ""
-        if moving_piece.symbol.upper() == 'P' and ((ord(move.start[1]) - ord(move.target[1])) in [2, -2]):
-            self.enPassant = move.start[0] + chr((ord(move.start[1]) + ord(move.target[1])) // 2)
-            self.en_target = move.target
+        if moving_piece.symbol.upper() == 'P' and ((ord(from_pos[1]) - ord(to_pos[1])) in [2, -2]):
+            self.enPassant = from_pos[0] + chr((ord(from_pos[1]) + ord(to_pos[1])) // 2)
+            self.en_target = to_pos
         if moving_piece.symbol.upper() == 'P' or captured_piece.symbol != '.':
             self.moveCounter75 = 0
         else:
             self.moveCounter75 = self.moveCounter75 + 1
         self.refresh()
         self.switch_turn()
-        notation = move.to_notation(self)
+        is_check = self.is_check()
+        check_or_mate_notation = ""
+        if is_check:
+            check_or_mate_notation = "+"
+            if self.is_checkmate():
+                check_or_mate_notation = "#"
+        notation = notation + check_or_mate_notation
         if moving_piece.color == WHITE:
             self.record_file = self.record_file + str(self.moveCounter) + ". " + notation
         else:
             self.record_file = self.record_file + " " + notation + " "
             self.moveCounter = self.moveCounter + 1
         Board.board_history.append(self.hash_state())
-        return (move.start, move.target), castling_move, notation
+        return (from_pos, to_pos), castling_move, notation
 
     def simulate_move(self, move):
         simulated_board = copy.deepcopy(self)
-        simulated_board.make_move(move)
+        simulated_board.make_move_by_notation(move)
         return simulated_board
 
     def is_draw_by_insufficient_material(self):
