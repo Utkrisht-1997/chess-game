@@ -169,7 +169,7 @@ def get_piece_from_possibles(pieces, identifier):
 
 
 def get_pos_from_square(square: str):
-    file_num = ord(square[0]) - 65
+    file_num = ord(square.upper()[0]) - 65
     rank_num = 8 - (ord(square[1]) - 48)
     return 8 * rank_num + file_num
 
@@ -1010,7 +1010,7 @@ class Board:
         self.enPassant = ""
         self.en_target = ""
         self.record_file = ""
-        Board.board_history.append(self.hash_state())
+        Board.board_history.append(self.save_state())
 
     @classmethod
     def from_fen(cls, fen: str):
@@ -1155,6 +1155,8 @@ class Board:
     def make_move_by_from_to(self, from_pos, to_pos, promoted_to="", identifier=None):
         if from_pos == "" or to_pos == "" or from_pos is None or to_pos is None:
             raise InvalidMove("From and to are not defined")
+        from_pos = from_pos.upper()
+        to_pos = to_pos.upper()
         if to_pos not in self.get_moves_for_square(from_pos):
             raise InvalidMove('Move not possible')
         captured_piece = self.remove_piece_at(to_pos, True)
@@ -1242,7 +1244,7 @@ class Board:
         else:
             self.record_file = self.record_file + " " + notation + " "
             self.moveCounter = self.moveCounter + 1
-        Board.board_history.append(self.hash_state())
+        Board.board_history.append(self.save_state())
         return (from_pos, to_pos), castling_move, notation
 
     def simulate_move(self, move):
@@ -1257,16 +1259,13 @@ class Board:
     def is_draw_by_75_move_rule(self):
         return self.moveCounter75 >= 75
 
-    def hash_state(self):
-        hsh = 0
-        for i in range(63):
-            hsh = hsh + hash(ord(self.char_board[i]) * (37 + i)) + hash(i)
-        hsh = hsh + hash(self.currentPlayer)
-        return hsh
+    def save_state(self):
+        fen = char_array_to_fen(self.char_board)
+        return fen[0:-4]
 
     def is_draw_by_five_fold_repetition(self):
-        hash_value = self.hash_state()
-        return Board.board_history.count(hash_value) >= 5
+        fen_value = self.save_state()
+        return Board.board_history.count(fen_value) >= 5
 
     def is_stalemate(self, player=None):
         if player is None:
@@ -1411,19 +1410,44 @@ class Board:
         info.stale_mate = self.is_stalemate()
         info.move_count = self.moveCounter
         info.game_over = self.is_game_over()
+        info.player_turn = 'w' if self.currentPlayer.color == WHITE else 'b'
+        info.board = self.char_board
+        info.fen = self.to_fen()
+        info.white_king_side_castle = self.get_white_player().castle_short
+        info.white_queen_side_castle = self.get_white_player().castle_long
+        info.black_king_side_castle = self.get_black_player().castle_short
+        info.black_queen_side_castle = self.get_black_player().castle_long
+        info.en_passant = self.enPassant
+        info.en_target = self.en_target
         return info
 
 
 class BoardInfo:
 
     def __init__(self):
+        self.board = ['.'] * 64
+        self.fen = ""
         self.check = False
         self.check_mate = False
         self.stale_mate = False
         self.move_count = False
         self.game_over = False
+        self.player_turn = 'w'
+        self.white_king_side_castle = True
+        self.white_queen_side_castle = True
+        self.black_king_side_castle = True
+        self.black_queen_side_castle = True
+        self.en_passant = ""
+        self.en_target = ""
 
     def __str__(self):
-        return "{ check: " + str(self.check) + ", check_mate: " + str(self.check_mate) + ", stale_mate: " + \
+        return "{ fen: " + self.fen + ", check: " + str(self.check) + ", check_mate: " + str(self.check_mate) + \
+               ", player turn: " + self.player_turn + \
+               ", white king side castle: " + str(self.white_king_side_castle) + \
+               ", white queen side castle: " + str(self.white_queen_side_castle) + \
+               ", black king side castle: " + str(self.black_king_side_castle) + \
+               ", black queen side castle: " + str(self.black_queen_side_castle) + \
+               ", en passant: " + self.en_passant + \
+               ", stale_mate: " + \
                str(self.stale_mate) + ", move_count: " + str(self.move_count) + ", game_over: " + str(self.game_over) +\
                "}"
